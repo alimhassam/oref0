@@ -9,7 +9,6 @@ old_main() {
         until( \
             echo && echo Starting pump-loop at $(date): \
             && wait_for_bg \
-            && wait_for_silence \
             && if_mdt_get_bg \
             && refresh_old_pumphistory_enact \
             && refresh_old_pumphistory_24h \
@@ -47,7 +46,7 @@ main() {
         prep
         echo && echo "Starting $looptype pump-loop at $(date) with $upto30s second wait_for_silence:"
         wait_for_bg || fail "$@"
-        wait_for_silence $upto30s || fail "$@"
+#        wait_for_silence $upto30s || fail "$@"
         preflight || preflight || fail "$@"
         if_mdt_get_bg || fail "$@"
         refresh_old_pumphistory_24h || fail "$@"
