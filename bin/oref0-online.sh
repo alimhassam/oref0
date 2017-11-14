@@ -42,7 +42,7 @@ main() {
         fi
         # if online via wifi, disconnect BT
         if has_ip wlan0 && ifconfig | egrep -q "bnep0" >/dev/null; then
-            bt_disconnect $MACs
+            #bt_disconnect $MACs
             #wifi_dhcp_renew
         fi
     else
