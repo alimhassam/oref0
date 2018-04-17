@@ -282,7 +282,7 @@ function smb_verify_suggested {
         echo Pumphistory/temp mismatch: retrying
         return 1
     fi
-    if jq -e -r .deliverAt enact/smb-suggested.json; then
+    if [ -s enact/smb-suggested.json ] && jq -e -r .deliverAt enact/smb-suggested.json; then
         echo -n "Checking deliverAt: " && jq -r .deliverAt enact/smb-suggested.json | tr -d '\n' \
         && echo -n " is within 1m of current time: " && date \
         && (( $(bc <<< "$(date +%s -d $(jq -r .deliverAt enact/smb-suggested.json | tr -d '\n')) - $(date +%s)") > -60 )) \
@@ -354,7 +354,6 @@ function refresh_after_bolus_or_enact {
             #echo -n "bolused since pumphistory refreshed, "
             #stat enact/bolused.json | grep Mod
         fi
-    #if (find enact/ -mmin -2 -size +5c | grep -q bolused.json || (cat monitor/temp_basal.json | json -c "this.duration > 28" | grep -q duration)); then
         # refresh profile if >5m old to give SMB a chance to deliver
         refresh_profile 3
         refresh_pumphistory_and_meal \
@@ -495,7 +494,7 @@ function mmtune {
     echo -n "mmtune: " && mmtune_Go >&3 2>&3
     #Read and zero pad best frequency from mmtune, and store/set it so Go commands can use it,
     #but only if it's not the default frequency
-    if ! $(jq -e .usedDefault monitor/mmtune.json); then
+    if ! $([ -s monitor/mmtune.json ] && jq -e .usedDefault monitor/mmtune.json); then
       freq=`jq -e .setFreq monitor/mmtune.json | tr -d "."`
       while [ ${#freq} -ne 9 ];
         do
@@ -579,18 +578,19 @@ function refresh_pumphistory_and_meal {
          || { echo; cat monitor/status.json | jq -c -C .; echo -n "x12 model detected. Ref"; }
     retry_return monitor_pump || return 1
     echo -n "meal.json "
-    retry_return oref0-meal monitor/pumphistory-24h-zoned.json settings/profile.json monitor/clock-zoned.json monitor/glucose.json settings/basal_profile.json monitor/carbhistory.json > monitor/meal.json || return 1
+    retry_return oref0-meal monitor/pumphistory-24h-zoned.json settings/profile.json monitor/clock-zoned.json monitor/glucose.json settings/basal_profile.json monitor/carbhistory.json > monitor/meal.json.new || { echo; echo "Couldn't calculate COB"; return 1; }
+    [ -s monitor/meal.json.new ] && jq -e .carbs monitor/meal.json.new >&3 && cp monitor/meal.json.new monitor/meal.json || { echo; echo "Couldn't copy meal.json"; fail "$@"; }
     echo "refreshed"
 }
 
-# monitor-pump report invoke monitor/clock.json monitor/temp_basal.json monitor/pumphistory.json monitor/pumphistory-zoned.json monitor/clock-zoned.json monitor/iob.json monitor/reservoir.json monitor/battery.json monitor/status.json
 function monitor_pump {
     retry_return invoke_pumphistory_etc || return 1
     retry_return invoke_reservoir_etc || return 1
 }
 
 function calculate_iob {
-    oref0-calculate-iob monitor/pumphistory-24h-zoned.json settings/profile.json monitor/clock-zoned.json settings/autosens.json > monitor/iob.json || { echo; echo "Couldn't calculate IOB"; fail "$@"; }
+    oref0-calculate-iob monitor/pumphistory-24h-zoned.json settings/profile.json monitor/clock-zoned.json settings/autosens.json > monitor/iob.json.new || { echo; echo "Couldn't calculate IOB"; fail "$@"; }
+    [ -s monitor/iob.json.new ] && jq -e .[0].iob monitor/iob.json.new >&3 && cp monitor/iob.json.new monitor/iob.json || { echo; echo "Couldn't copy IOB"; fail "$@"; }
 }
 
 function invoke_pumphistory_etc {
@@ -780,7 +780,8 @@ function glucose-fresh {
     else
         touch -d "$(date -R -d @$(jq .[0].date/1000 monitor/glucose.json))" monitor/glucose.json 2>&3
     fi
-    if (! ls /tmp/pump_loop_completed >&4 ); then
+    if (! [ -s /tmp/pump_loop_completed ] ); then
+        echo "First loop: not waiting"
         return 0;
     elif (find monitor/ -newer /tmp/pump_loop_completed | grep -q glucose.json); then
         echo glucose.json newer than pump_loop_completed
@@ -834,7 +835,7 @@ function check_battery() {
 }
 function check_tempbasal() {
   set -o pipefail
-  mdt tempbasal 2>&3 | tee monitor/temp_basal.json >&4 && cat monitor/temp_basal.json | jq .temp >&4
+  mdt tempbasal 2>&3 | tee monitor/temp_basal.json >&4 && cat monitor/temp_basal.json | jq .temp >&4 && cp monitor/temp_basal.json monitor/last_temp_basal.json
 }
 
 # clear and refresh the 24h pumphistory file approximatively every 6 hours.
