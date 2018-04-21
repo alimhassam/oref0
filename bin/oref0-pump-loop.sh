@@ -35,6 +35,7 @@ main() {
     if ! overtemp; then
         echo && echo "Starting oref0-pump-loop at $(date) with $upto30s second wait_for_silence:"
         try_fail wait_for_bg
+        savepumphistory
         try_fail wait_for_silence $upto30s
         retry_fail preflight
         try_fail if_mdt_get_bg
@@ -84,6 +85,12 @@ main() {
         fi
     fi
 }
+
+function savepumphistory {
+ mkdir -p savedpumphistory
+ cp  monitor/pumphistory-24h-zoned.json savedpumphistory/pumhistory.$(date +%Y-%m-%d.%H:%M:%S).json
+}
+
 
 function update_display {
     # TODO: install this globally
