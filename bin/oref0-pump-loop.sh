@@ -864,7 +864,7 @@ function read_pumphistory() {
     # The logic could be improved once the pumphistory command support this feature.
     echo -n "Pump history update"
     try_fail mv monitor/pumphistory-24h-zoned.json monitor/pumphistory-24h-zoned-old.json
-    if ((pumphistory -s $topRecordTimestamp  2>&3 | jq -f openaps.jq 2>&3 ) && cat monitor/pumphistory-24h-zoned-old.json) | jq -s '.[0] + .[1]'  > monitor/pumphistory-24h-zoned.json; then
+    if ((pumphistory -s $topRecordTimestamp  2>&3 | jq -f openaps.jq 2>&3 | oref0-clockskew) && cat monitor/pumphistory-24h-zoned-old.json) | jq -s '.[0] + .[1]'  > monitor/pumphistory-24h-zoned.json; then
         try_fail rm monitor/pumphistory-24h-zoned-old.json
         echo -n "d through $(jq -r '.[0].timestamp' monitor/pumphistory-24h-zoned.json); "
     else
@@ -878,7 +878,7 @@ function read_full_pumphistory() {
   set -o pipefail
   rm monitor/pumphistory-24h-zoned.json
   echo -n "Full history refresh" \
-  && ((( pumphistory -n 27 2>&3 | jq -f openaps.jq 2>&3 | tee monitor/pumphistory-24h-zoned.json 2>&3 >&4 ) \
+  && ((( pumphistory -n 27 2>&3 | jq -f openaps.jq 2>&3 | oref0-clockskew | tee monitor/pumphistory-24h-zoned.json 2>&3 >&4 ) \
       && echo -n ed) \
      || (echo " failed. "; return 1)) \
   && echo " through $(jq -r '.[0].timestamp' monitor/pumphistory-24h-zoned.json)"
