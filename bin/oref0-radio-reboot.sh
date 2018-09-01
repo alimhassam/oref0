@@ -16,7 +16,7 @@ EOF
 # Note that this is a workaround, until we found the root cause of why the rig pump communication fails
 
 SYSTEM_UP=$(date --date="$(uptime -s)" +%s)
-# Start checking only when the system has been up for 15 minutes.
+# Start checking only when the system has been up for some time.
 START_CHECKING=$(date -d"30 minutes ago" +%s)
 if [ $SYSTEM_UP -lt $START_CHECKING ]; then
   radio_errors=`tail --lines=20 /var/log/openaps/pump-loop.log | egrep "spidev.* in use|retry 0|illing process"`
